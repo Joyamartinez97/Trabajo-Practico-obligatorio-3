@@ -1,1 +1,129 @@
 
+import unittest
+
+# --- Función requerida ---
+def calcular_emisiones_carbono(consumo_kwh, factor_emision=0.4):
+    """
+    Calcula las emisiones de carbono basadas en el consumo eléctrico y un factor de emisión.
+    Lanza ValueError si el consumo es negativo.
+    """
+    if consumo_kwh < 0:
+        raise ValueError("El consumo en kWh no puede ser un valor negativo.")
+    return consumo_kwh * factor_emision
+
+
+# --- Clase de pruebas unitarias ---
+class TestCalculoEmisiones(unittest.TestCase):
+    
+    def test_calculo_nominal_default(self):
+        """Valida la exactitud numérica usando el factor de emisión por defecto (0.4)."""
+        consumo = 100.0
+        resultado_esperado = 40.0  # 100 * 0.4
+        resultado_obtenido = calcular_emisiones_carbono(consumo)
+        self.assertAlmostEqual(resultado_obtenido, resultado_esperado)
+
+    def test_calculo_nominal_custom_factor(self):
+        """Valida la exactitud numérica utilizando un factor de emisión personalizado."""
+        consumo = 250.0
+        factor = 0.55
+        resultado_esperado = 137.5  # 250 * 0.55
+        resultado_obtenido = calcular_emisiones_carbono(consumo, factor_emision=factor)
+        self.assertAlmostEqual(resultado_obtenido, resultado_esperado)
+
+    def test_calculo_consumo_cero(self):
+        """Valida que un consumo de 0 kWh devuelva exactamente 0 de emisiones."""
+        self.assertEqual(calcular_emisiones_carbono(0), 0.0)
+
+    def test_excepcion_consumo_negativo(self):
+        """Verifica que se eleve un ValueError de forma controlada ante un consumo negativo."""
+        with self.assertRaises(ValueError) as contexto:
+            calcular_emisiones_carbono(-15.5)
+        
+        # Opcional: Verificamos que el mensaje de la excepción sea el esperado
+        self.assertEqual(str(contexto.exception), "El consumo en kWh no puede ser un valor negativo.")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+###############EJERCICIO B#####################################
+# ==========================================
+# 1. FUNCIÓN DE PROCESAMIENTO DE MÉTRICAS
+# ==========================================
+def calcular_emisiones_carbono(consumo_kwh, factor_emision=0.4):
+    
+    if consumo_kwh < 0:
+        raise ValueError("El consumo en kWh no puede ser un valor negativo.")
+    return consumo_kwh * factor_emision
+
+
+def obtener_metricas_consumo(registros):
+  
+    if not registros:
+        return {
+            "total_emisiones": 0.0,
+            "total_consumo": 0.0,
+            "planta_mayor_consumo": None,
+            "detalle_plantas": []
+        }
+
+    total_emisiones = 0.0
+    total_consumo = 0.0
+    mayor_consumo = -1.0
+    planta_mayor_consumo = None
+    detalle_plantas = []
+
+    for reg in registros:
+        nombre_planta = reg.get("planta", "Desconocida")
+        consumo = reg.get("consumo_kwh", 0.0)
+        # Permite un factor personalizado por registro o usa el valor por defecto
+        factor = reg.get("factor_emision", 0.4)
+
+        # Cálculo de emisiones invocando la función requerida
+        emisiones = calcular_emisiones_carbono(consumo, factor)
+
+        total_consumo += consumo
+        total_emisiones += emisiones
+
+        # Determinar la planta de mayor consumo
+        if consumo > mayor_consumo:
+            mayor_consumo = consumo
+            planta_mayor_consumo = nombre_planta
+
+        detalle_plantas.append({
+            "planta": nombre_planta,
+            "consumo_kwh": consumo,
+            "emisiones_co2": emisiones
+        })
+
+    return {
+        "total_emisiones": round(total_emisiones, 2),
+        "total_consumo": round(total_consumo, 2),
+        "planta_mayor_consumo": planta_mayor_consumo,
+        "detalle_plantas": detalle_plantas
+    }
+
+
+# ==========================================
+# 2. VISTA DE DJANGO
+# ==========================================
+from django.shortcuts import render
+
+def vista_panel_sustentabilidad(request):
+  
+    registros_historicos = [
+        {"planta": "Planta Central Buenos Aires", "consumo_kwh": 4500.0, "factor_emision": 0.38},
+        {"planta": "Planta Norte Córdoba", "consumo_kwh": 6200.5, "factor_emision": 0.42},
+        {"planta": "Planta Sur Mendoza", "consumo_kwh": 3100.0, "factor_emision": 0.35},
+    ]
+
+    metricas = obtener_metricas_consumo(registros_historicos)
+
+    contexto = {
+        "titulo_panel": "Panel de Control de Sustentabilidad - EcoTech",
+        "total_emisiones": metricas["total_emisiones"],
+        "total_consumo": metricas["total_consumo"],
+        "planta_mayor_consumo": metricas["planta_mayor_consumo"],
+        "detalle_plantas": metricas["detalle_plantas"],
+    }
+    return render(request, "sustentabilidad/panel.html", contexto)
