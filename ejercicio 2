@@ -1,1 +1,173 @@
 
+# 1. Definición de la excepción personalizada
+class StockInvalidoError(ValueError):
+    """Excepción lanzada cuando se intenta asignar un valor de stock negativo."""
+    def __init__(self, mensaje="El stock no puede ser un valor negativo."):
+        super().__init__(mensaje)
+
+
+# 2. Clase base con encapsulamiento explícito
+class DispositivoEcológico:
+    def __init__(self, nombre: str, precio: float, stock: int):
+        self.__nombre = nombre
+        self.__precio = precio
+        self.stock = stock  # Utiliza la propiedad (setter) para validar desde el inicio
+
+    # Encapsulamiento del atributo stock mediante property
+    @property
+    def stock(self) -> int:
+        return self.__stock
+
+    @stock.setter
+    def stock(self, valor: int):
+        if valor < 0:
+            raise StockInvalidoError(
+                f"Stock inválido ({valor}) para '{self.__nombre}'. El stock no puede ser negativo."
+            )
+        self.__stock = valor
+
+    @property
+    def nombre(self) -> str:
+        return self.__nombre
+
+    @property
+    def precio(self) -> float:
+        return self.__precio
+
+    # Método base para la ficha técnica (susceptible a polimorfismo)
+    def obtener_ficha_tecnica(self) -> str:
+        return f"Producto: {self.__nombre} | Precio: ${self.__precio:.2f} | Stock: {self.__stock}"
+
+
+# 3. Clase especializada que aplica herencia y polimorfismo
+class PanelSolar(DispositivoEcológico):
+    def __init__(self, nombre: str, precio: float, stock: int, potencia_vatios: float, eficiencia: float):
+        super().__init__(nombre, precio, stock)
+        self.__potencia_vatios = potencia_vatios
+        self.__eficiencia = eficiencia  # Ej: 0.21 para 21%
+
+    @property
+    def potencia_vatios(self) -> float:
+        return self.__potencia_vatios
+
+    @property
+    def eficiencia(self) -> float:
+        return self.__eficiencia
+
+    # Polimorfismo: Sobrescribimos el método para extender la información comercial específica
+    def obtener_ficha_tecnica(self) -> str:
+        ficha_base = super().obtener_ficha_tecnica()
+        return (
+            f"=== FICHA TÉCNICA COMERCIAL: PANEL SOLAR ===\n"
+            f"{ficha_base}\n"
+            f"• Potencia Nominal: {self.__potencia_vatios} W\n"
+            f"• Eficiencia Energética: {self.__eficiencia * 100:.1f}%\n"
+            f"============================================"
+        )
+
+
+# --- Ejemplo de uso y pruebas (ÚNICO lugar que va indentado dentro del if) ---
+if __name__ == "__main__":
+    try:
+        # Creación exitosa de un panel solar
+        mi_panel = PanelSolar(nombre="SolarMax 400W", precio=299.99, stock=15, potencia_vatios=400, eficiencia=0.22)
+        print(mi_panel.obtener_ficha_tecnica())
+
+        print("\nModificando stock de forma correcta...")
+        mi_panel.stock = 10
+        print(f"Stock actualizado: {mi_panel.stock}")
+
+        print("\nIntentando asignar un stock negativo...")
+        mi_panel.stock = -5  # Esto disparará la excepción StockInvalidoError
+
+    except StockInvalidoError as e:
+        print(f"[EXCEPCIÓN CAPTURADA]: {e}")
+
+
+#################EJERCICIO B ##############################
+import json
+
+# --- Definición de la excepción personalizada (si no está creada en el Punto A) ---
+class StockInvalidoError(Exception):
+    """Excepción lanzada cuando se intenta asignar un valor de stock inválido (negativo)."""
+    pass
+
+# --- Clase base de Dispositivos (Punto A) ---
+class Dispositivo:
+    def __init__(self, nombre, stock, precio):
+        self.nombre = nombre
+        self.stock = stock
+        self.precio = precio
+
+    @property
+    def stock(self):
+        return self._stock
+
+    @stock.setter
+    def stock(self, valor):
+        if valor < 0:
+            raise StockInvalidoError(f"Error de validación: El stock no puede ser negativo (valor ingresado: {valor}).")
+        self._stock = valor
+
+    def to_dict(self):
+        """Convierte la instancia en un diccionario para facilitar la serialización JSON."""
+        return {
+            "nombre": self.nombre,
+            "stock": self.stock,
+            "precio": self.precio
+        }
+
+# --- Clase GestorInventario ---
+class GestorInventario:
+    @staticmethod
+    def guardar_catalogo_json(lista_dispositivos, ruta_archivo):
+        """
+        Serializa y almacena una lista de dispositivos en formato JSON.
+        """
+        try:
+            # Convertir cada objeto dispositivo a diccionario
+            catalogo_datos = []
+            for dispositivo in lista_dispositivos:
+                if hasattr(dispositivo, 'to_dict'):
+                    catalogo_datos.append(dispositivo.to_dict())
+                else:
+                    catalogo_datos.append(dispositivo.__dict__)
+
+            # Guardar en el archivo JSON especificado
+            with open(ruta_archivo, 'w', encoding='utf-8') as archivo:
+                json.dump(catalogo_datos, archivo, ensure_ascii=False, indent=4)
+                
+            print(f"Catálogo guardado exitosamente en '{ruta_archivo}'.")
+        except IOError as e:
+            print(f"Error de E/S al intentar escribir el archivo: {e}")
+        except Exception as e:
+            print(f"Ocurrió un error inesperado durante la serialización: {e}")
+
+# --- Bloque de Prueba ---
+if __name__ == "__main__":
+    print("=== 1. VERIFICACIÓN DE CAPTURA DE StockInvalidoError ===")
+    try:
+        # Intentamos instanciar o modificar el stock con un valor inválido
+        print("Intentando crear un dispositivo con stock negativo...")
+        dispositivo_prueba = Dispositivo("Smartphone Test", stock=10, precio=300.0)
+        
+        # Simulamos un intento de asignación errónea de stock
+        dispositivo_prueba.stock = -5
+    except StockInvalidoError as e:
+        print(f"[Captura Exitosa] Excepción controlada detectada: {e}")
+    
+    print("\n=== 2. EXPORTACIÓN EXITOSA DE PRODUCTOS VÁLIDOS ===")
+    try:
+        # Creación de instancias válidas de dispositivos del catálogo EcoTech
+        productos_validos = [
+            Dispositivo("EcoPhone X1", stock=25, precio=499.99),
+            Dispositivo("EcoLaptop Pro", stock=10, precio=1199.50),
+            Dispositivo("EcoTablet Air", stock=18, precio=329.00)
+        ]
+
+        # Exportación al archivo solicitado
+        nombre_archivo = "catalogo_ecotech.json"
+        GestorInventario.guardar_catalogo_json(productos_validos, nombre_archivo)
+        
+    except Exception as e:
+        print(f"Fallo en el proceso de exportación: {e}")
